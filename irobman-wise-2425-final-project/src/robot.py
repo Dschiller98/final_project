@@ -84,6 +84,10 @@ class Robot:
     def get_joint_positions(self):
         states = p.getJointStates(self.id, self.arm_idx)
         return np.array([state[0] for state in states])
+    
+    def get_gripper_positions(self):
+        states = p.getJointStates(self.id, self.gripper_idx)
+        return np.array([state[0] for state in states])
 
     def get_joint_velocites(self):
         states = p.getJointStates(self.id, self.arm_idx)
