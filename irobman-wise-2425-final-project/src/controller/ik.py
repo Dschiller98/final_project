@@ -7,7 +7,7 @@ This Controller gets used throughout the project (e.g. executing the grasp - mov
 
 import numpy as np
 import pybullet as p
-from robot import Robot
+from src.robot import Robot
 
 def ik_solver(robot: Robot, goal_position: np.ndarray, max_iters: int = 100, threshold: float = 1e-3):
         """
@@ -33,20 +33,22 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, max_iters: int = 100, thr
             jacobian = p.calculateJacobian(
                 robot.id,
                 robot.ee_idx,
-                localPosition=[0, 0, 0],
-                objPositions=robot.get_joint_positions().tolist(),
-                objVelocities=[0.0] * len(robot.arm_idx),
-                objAccelerations=[0.0] * len(robot.arm_idx),
+                localPosition=[0.0, 0.0, 0.0],
+                objPositions=robot.get_joint_positions().tolist() + robot.get_gripper_positions().tolist(),
+                objVelocities=[0.0] * (len(robot.arm_idx)+len(robot.gripper_idx)),
+                objAccelerations=[0.0] * (len(robot.arm_idx)+len(robot.gripper_idx)),
             )[0]
 
             # Compute joint velocity using the pseudo-inverse of the Jacobian
             jacobian_pseudo_inverse = np.linalg.pinv(jacobian)
-            joint_velocities = np.dot(jacobian_pseudo_inverse, error)
+            joint_angles = np.dot(jacobian_pseudo_inverse, error)
 
             # Update joint positions
-            current_positions = robot.get_joint_positions()
-            new_positions = current_positions + joint_velocities * 0.1  # Scale step size
-            robot.position_control(new_positions)
+            current_positions = np.concatenate((robot.get_joint_positions(),robot.get_gripper_positions()))
+            new_positions = current_positions + joint_angles * 0.8 # Scale step size
+            # Clamp joint positions to within limits
+            new_positions = np.clip(new_positions[robot.arm_idx], robot.lower_limits, robot.upper_limits)
+            robot.position_control(new_positions[robot.arm_idx])
 
 def move_to_goal(robot, goal_position: np.ndarray):
     """
@@ -55,5 +57,5 @@ def move_to_goal(robot, goal_position: np.ndarray):
     Args:
         goal_position: Desired end-effector position (x, y, z)
     """
-    robot.ik_solver(goal_position)
+    ik_solver(robot, goal_position)
     
