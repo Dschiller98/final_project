@@ -7,7 +7,7 @@ This Controller gets used throughout the project (e.g. executing the grasp - mov
 
 import numpy as np
 import pybullet as p
-from src.robot import Robot
+from .robot import Robot
 
 def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 100, threshold: float = 1e-3):
         """

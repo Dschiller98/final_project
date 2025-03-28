@@ -1,7 +1,7 @@
 
 import numpy as np
 import open3d as o3d
-from src.controller.ik import move_to_goal
+from .ik import move_to_goal
 
 
 class PoseEstimator:

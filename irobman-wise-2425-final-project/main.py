@@ -10,6 +10,8 @@ from pybullet_object_models import ycb_objects  # type:ignore
 
 from src.simulation import Simulation
 
+from src.pose_estimator import PoseEstimator
+
 
 def run_exp(config: Dict[str, Any]):
     # Example Experiment Runner File
@@ -19,6 +21,7 @@ def run_exp(config: Dict[str, Any]):
     files = glob.glob(os.path.join(object_root_path, "Ycb*"))
     obj_names = [file.split('/')[-1] for file in files]
     sim = Simulation(config)
+    pose_estimator = PoseEstimator(sim)
     for obj_name in obj_names:
         for tstep in range(10):
             sim.reset(obj_name)
@@ -42,6 +45,8 @@ def run_exp(config: Dict[str, Any]):
                 #static_rgb, static_depth, static_seg = sim.get_static_renders()
                 #ee_rgb, ee_depth, ee_seg = sim.get_ee_renders()
                 obj_id = sim.object.id
+
+                pose_estimator.estimate_position(obj_id)
                 
                 obs_position_guess = np.zeros((2, 3))
                 print((f"[{i}] Obstacle Position-Diff: "
