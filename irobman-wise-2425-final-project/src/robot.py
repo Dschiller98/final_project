@@ -72,6 +72,15 @@ class Robot:
             lower.append(joint_info[8])
             upper.append(joint_info[9])
         return lower, upper
+    
+    def get_gripper_limits(self):
+        lower = []
+        upper = []
+        for idx in self.gripper_idx:
+            joint_info = p.getJointInfo(self.id, idx)
+            lower.append(joint_info[8])
+            upper.append(joint_info[9])
+        return lower, upper
 
     def print_joint_infos(self):
         num_joints = p.getNumJoints(self.id)
@@ -105,4 +114,13 @@ class Robot:
             jointIndices=self.arm_idx,
             controlMode=p.POSITION_CONTROL,
             targetPositions=target_positions,
+        )
+
+    def gripper_control(self, target_positions):
+        p.setJointMotorControlArray(
+            self.id,
+            jointIndices=self.gripper_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPositions=target_positions,
+            forces=[100] * len(self.gripper_idx)
         )
