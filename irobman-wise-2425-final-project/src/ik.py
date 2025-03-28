@@ -9,7 +9,7 @@ import numpy as np
 import pybullet as p
 from .robot import Robot
 
-def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 100, threshold: float = 1e-3):
+def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 10000, threshold: float = 1e-3):
         """
         Iterative inverse Kinematics solver using Jacobian pseudo-inverse.
 
@@ -18,19 +18,22 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
             max_iters: Maximum number of iterations
             threshold: Convergence threshold for position error
         """
-        for _ in range(max_iters):
+        for i in range(max_iters):
             # Get current end-effector pose
             current_position, current_orientation = robot.get_ee_pose()
-            current_orientation = np.array(p.getMatrixFromQuaternion(current_orientation)).reshape((3,3), order='F')
 
             # Compute position error
             position_error = goal_position - current_position
 
-            # Compute orientation error
-            rot_error = np.dot(goal_orientation, current_orientation.T)
-            orientation_error = np.array([rot_error[2, 1] - rot_error[1, 2],
-                                          rot_error[0, 2] - rot_error[2, 0],
-                                          rot_error[1, 0] - rot_error[0, 1]]) / 2
+             # Compute orientation error
+            orientation_error = p.getDifferenceQuaternion(current_orientation, goal_orientation)
+            orientation_error = np.array(orientation_error)
+            # Make the scale part of the quaternion positive
+            if orientation_error[3] < 0:
+                orientation_error[3] = -orientation_error[3]
+            # Convert the orientation error to axis-angle representation
+            axis, angle = p.getAxisAngleFromQuaternion(orientation_error)
+            orientation_error = np.array(axis) * angle
             
             # Combine position and orientation error
             error = np.concatenate((position_error, orientation_error))
@@ -59,19 +62,24 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
 
             # Update joint positions
             current_positions = np.concatenate((robot.get_joint_positions(),robot.get_gripper_positions()))
-            new_positions = current_positions + joint_angles * 0.8 # Scale step size
+            new_positions = current_positions + joint_angles * 0.1 # Scale step size
             # Clamp joint positions to within limits
             new_positions = np.clip(new_positions[robot.arm_idx], robot.lower_limits, robot.upper_limits)
             robot.position_control(new_positions[robot.arm_idx])
 
-def move_to_goal(robot, goal_position: np.ndarray, goal_rotation=None):# np.ndarray):
+            p.stepSimulation()
+
+def move_to_goal(robot, goal_position: np.ndarray, goal_rotation: np.ndarray = [0, 1, 0, 0]):
     """
     Moves the robot to the specified goal position using the IK solver.
+    default orientation looks down on the table.
 
     Args:
         goal_position: Desired end-effector position (x, y, z)
+        goal_rotation: Desired end-effector orientation (quaternion)
     """
 
-    goal_rot = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    ik_solver(robot, goal_position, goal_rot)
+    ik_solver(robot, goal_position, goal_rotation)
+
+    # planning mit informed rrt star, artificial potential field für local planning
     
