@@ -10,8 +10,6 @@ from pybullet_object_models import ycb_objects  # type:ignore
 
 from src.simulation import Simulation
 
-from src.pose_estimation.icp import run_icp
-
 
 def run_exp(config: Dict[str, Any]):
     # Example Experiment Runner File
@@ -41,11 +39,10 @@ def run_exp(config: Dict[str, Any]):
             for i in range(10000):
                 sim.step()
                 # for getting renders
-                static_rgb, static_depth, static_seg = sim.get_static_renders()
-                ee_rgb, ee_depth, ee_seg = sim.get_ee_renders()
+                #static_rgb, static_depth, static_seg = sim.get_static_renders()
+                #ee_rgb, ee_depth, ee_seg = sim.get_ee_renders()
                 obj_id = sim.object.id
                 
-                transform = run_icp(static_rgb, static_depth, static_seg, sim.projection_matrix, sim.stat_viewMat, obj_id, obj_name, voxel_size=0.05)
                 obs_position_guess = np.zeros((2, 3))
                 print((f"[{i}] Obstacle Position-Diff: "
                        f"{sim.check_obstacle_position(obs_position_guess)}"))
