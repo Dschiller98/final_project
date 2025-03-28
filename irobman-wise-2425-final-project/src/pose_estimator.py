@@ -2,6 +2,7 @@
 import numpy as np
 import open3d as o3d
 from .ik import move_to_goal
+import pybullet as p
 
 
 class PoseEstimator:
@@ -41,7 +42,7 @@ class PoseEstimator:
         """
         return seg_image == object_id
 
-    def estimate_position_from_depth(self, depth_image, mask):
+    def estimate_position_from_depth(self, depth_image, mask, camera_type):
         """
         Estimate the position of the object using the depth image from a camera.
 
@@ -53,13 +54,13 @@ class PoseEstimator:
             Position of the object center.
         """
         # Extract 3D points from the depth image
-        points = self.depth_to_point_cloud(depth_image, mask)
+        points = self.depth_to_point_cloud(depth_image, mask, camera_type)
 
         # Compute the position as the centroid of the points
         position = np.mean(points, axis=0)
         return position
 
-    def depth_to_point_cloud(self, depth_image, mask):
+    def depth_to_point_cloud(self, depth_image, mask, camera_type):
         """
         Convert a depth image to a 3D point cloud (in world coordinates).
 
@@ -91,11 +92,27 @@ class PoseEstimator:
                    [0,  -1,  0,  0],
                    [0,  0,  -1,  0],
                    [0,  0,  0,  1]]).reshape(4,4)
-        extrinsic = np.linalg.inv(np.array(self.sim.stat_viewMat).reshape((4,4),order="F")) @ Tc
+        
+        if camera_type == "static":
+            view_matrix = self.sim.stat_viewMat
+        elif camera_type == "ee":
+            """Get end-effector camera viewmatrix. y-axis is up."""
+            ee_pos, ee_rot = self.robot.get_ee_pose()
+            rot_matrix = p.getMatrixFromQuaternion(ee_rot)
+            rot_matrix = np.array(rot_matrix).reshape(3, 3)
+            init_camera_vector = (0, 0, 1)  # z-axis
+            init_up_vector = (0, 1, 0)  # y-axis
+            # Rotated vectors
+            camera_vector = rot_matrix.dot(init_camera_vector)
+            up_vector = rot_matrix.dot(init_up_vector)
+
+            view_matrix = p.computeViewMatrix(ee_pos, ee_pos + 0.1 * camera_vector, up_vector)
+        
+        extrinsic = np.linalg.inv(np.array(view_matrix).reshape((4,4),order="F")) @ Tc
 
         # Convert depth image to point cloud
 
-        pointcloud = o3d.geometry.PointCloud.create_from_depth_image(o3d.geometry.Image(depth_image), intrinsic)#, extrinsic=np.array(self.sim.stat_viewMat).reshape((4,4),order="F"))
+        pointcloud = o3d.geometry.PointCloud.create_from_depth_image(o3d.geometry.Image(depth_image), intrinsic)
 
         points = np.asarray(pointcloud.points)
         points = np.concatenate([points, np.ones((points.shape[0], 1))], axis=-1)
@@ -129,9 +146,10 @@ class PoseEstimator:
         """
         return points
 
-    def estimate_position(self, object_id):
+    
+    def estimate_position_from_static(self, object_id):
         """
-        Full position estimation workflow using the static and end-effector camera.
+        Position estimation using the static camera.
 
         Args:
             object_id: ID of the target object.
@@ -139,19 +157,42 @@ class PoseEstimator:
         Returns:
             Position of the object center.
         """
-        # Coarse position estimation using the static camera
         rgb_static, depth_static, seg_static = self.get_static_camera_data()
         mask_static = self.segment_object(seg_static, object_id)
-        coarse_position = self.estimate_position_from_depth(depth_static, mask_static)
+        position = self.estimate_position_from_depth(depth_static, mask_static, camera_type="static")
 
-        # Move end-effector camera to the coarse position
-        #orientation = np.eye(3) # rotate camera to look at the object from above        
-        #coarse_position[2] += 0.15 # add some height to view object from above
-        #move_to_goal(self.sim.robot, coarse_position)
+        return position
+    
 
-        # Refined position estimation using the end-effector camera
+    def estimate_position_from_ee(self, object_id):
+        """
+        Position estimation using the end-effector camera.
+
+        Args:
+            object_id: ID of the target object.
+
+        Returns:
+            Position of the object center.
+        """
         rgb_ee, depth_ee, seg_ee = self.get_ee_camera_data()
         mask_ee = self.segment_object(seg_ee, object_id)
-        refined_position = self.estimate_position_from_depth(depth_ee, mask_ee)
+        position = self.estimate_position_from_depth(depth_ee, mask_ee, camera_type="ee")
 
-        return coarse_position
+        return position
+    
+
+    def scan_table(self, object_id):
+        """
+        Scan the table using the end-effector camera to estimate the object position.
+
+        Args:
+            object_id: ID of the target object.
+
+        Returns:
+            Position of the object center.
+        """
+        position = self.estimate_position_from_ee(object_id)
+        return position
+
+    # TODO estimate_object_position -> beinhaltet absuchen des tisches mit ee um objekt zu finden -> komplette pipline um target zu finden
+    # TODO falls static object schon findet, trzd mit ee genauer nachschauen
