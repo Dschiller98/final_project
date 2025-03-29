@@ -14,6 +14,8 @@ from src.pose_estimator import PoseEstimator
 
 from src.ik import move_to_goal
 
+from src.grasping import PickAndPlace, GraspPlanner
+
 
 def run_exp(config: Dict[str, Any]):
     # Example Experiment Runner File
@@ -26,7 +28,7 @@ def run_exp(config: Dict[str, Any]):
     pose_estimator = PoseEstimator(sim)
     for obj_name in obj_names:
         for tstep in range(10):
-            sim.reset("YcbPowerDrill")
+            sim.reset("YcbChipsCan")
             print((f"Object: {obj_name}, Timestep: {tstep},"
                    f" pose: {sim.get_ground_tuth_position_object}"))
             pos, ori = sim.robot.pos, sim.robot.ori
@@ -56,8 +58,13 @@ def run_exp(config: Dict[str, Any]):
                 print(f"Error in estimating object position from static camera image: {e}")
                 #obj_position = pose_estimator.scan_table(obj_id)
             
-            move_to_goal(sim.robot, np.array([0.0, -0.65, 1.40]), [0, 1, 0, 0])
-            p.addUserDebugPoints([sim.robot.get_ee_pose()[0]], [[0, 1, 0]], pointSize=10)
+            pnp = PickAndPlace(sim.robot, sim)
+            grasp_planner = GraspPlanner(pose_estimator.pcd)
+
+            grasp = grasp_planner.find_best_grasp()
+
+            pnp.pick_and_place(grasp[0], grasp[1], goal_position=[0.5, 0.4, 1.4])
+
             for i in range(10000):
                 sim.step()
                 # for getting renders
