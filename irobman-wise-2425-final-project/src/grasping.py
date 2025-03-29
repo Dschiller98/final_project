@@ -2,6 +2,7 @@ import numpy as np
 import open3d as o3d
 import pybullet as p
 from scipy.spatial import ConvexHull
+from scipy.spatial.transform import Rotation as R
 from .ik import move_to_goal
 
 class PickAndPlace:
@@ -60,7 +61,7 @@ class PickAndPlace:
         move_to_goal(self.robot, pre_place_position)
 
         # Move to the goal position
-        move_to_goal(self.robot, goal_position)
+        #move_to_goal(self.robot, goal_position)
 
         # Retrieve gripper limits
         _, upper_limits = self.robot.get_gripper_limits()
@@ -69,9 +70,9 @@ class PickAndPlace:
         self.robot.gripper_control(upper_limits)
 
         # Move back up after placing the object
-        move_to_goal(self.robot, pre_place_position)
+        #move_to_goal(self.robot, pre_place_position)
 
-    def pick_and_place(self, object_position: np.ndarray, goal_position: np.ndarray):
+    def pick_and_place(self, gripper_position: np.ndarray, grasp_orientation: np.ndarray, goal_position: np.ndarray):
         """
         Execute a pick-and-place operation.
 
@@ -80,7 +81,7 @@ class PickAndPlace:
             goal_position: The position to place the object as a numpy array [x, y, z].
         """
         print("Starting pick-and-place operation...")
-        self.pick(object_position)
+        self.pick(gripper_position, grasp_orientation)
         print("Object picked successfully.")
         self.place(goal_position)
         print("Object placed successfully.")
@@ -116,18 +117,15 @@ class GraspPlanner:
         axis2 = eigenvectors[:, idx[1]]  # Second principal axis
 
         # Compute the gripper center position
-        gripper_center = centroid  # Center position for gripper
+        gripper_center = centroid  
         
-        # Create a rotation matrix aligning the first principal axis
-        x_axis = axis1
-        y_axis = axis2 / np.linalg.norm(axis2)  # Normalize the second axis
-        z_axis = np.cross(y_axis, x_axis)      # Orthogonal x-axis
-        z_axis /= np.linalg.norm(z_axis)        # Normalize x-axis
-        
-        # Final rotation matrix
-        rotation_matrix = np.array([x_axis, y_axis, z_axis]).T
+        # Normalize axes
+        x_axis = axis1 / np.linalg.norm(axis1)  
+        y_axis = axis2 / np.linalg.norm(axis2)  
+        z_axis = np.cross(x_axis, y_axis)  # Compute orthogonal z-axis
+        z_axis /= np.linalg.norm(z_axis)  
 
-        # Turn the rotation matrix into a quaternion
-        quaternion = p.getQuaternionFromMatrix(rotation_matrix)
+        rotation = R.from_matrix(np.column_stack((x_axis, y_axis, z_axis)))
+        quaternion = rotation.as_quat()  # Convert to quaternion
 
         return gripper_center, quaternion
