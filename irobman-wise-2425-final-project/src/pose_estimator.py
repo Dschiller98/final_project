@@ -210,7 +210,7 @@ class PoseEstimator:
     def estimate_object_pcd(self, object_id):
 
         position = self.estimate_object_position(object_id)
-        camera_pos = position + np.array([0, 0, 0.1]) # Offset above the object
+        camera_pos = position + np.array([0, 0, 0.2]) # Offset above the object
         move_to_goal(self.sim.robot, camera_pos)
         pcd = self.estimate_pcd_from_ee(object_id)
 
