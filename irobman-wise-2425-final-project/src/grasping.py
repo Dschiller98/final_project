@@ -36,18 +36,21 @@ class PickAndPlace:
         # Open the gripper
         self.robot.gripper_control(upper_limits)
 
-        # Move above the object
-        pre_grasp_position = object_position + np.array([0, 0, 0.1])  # Offset above the object
-        move_to_goal(self.robot, pre_grasp_position, orientation)
+        # Estimate of grasp position tends to be too high
+        grasp_position = object_position + np.array([0, 0, -0.01])
+        #move_to_goal(self.robot, pre_grasp_position, orientation)
 
         # Move to the object
-        move_to_goal(self.robot, object_position, orientation)
+        move_to_goal(self.robot, grasp_position, orientation)
 
         # Close the gripper to grasp the object
         self.robot.gripper_control(lower_limits)
 
+        # Move to a position above the object
+        post_grasp_position = object_position + np.array([0, 0, 0.1])
+
         # Move back up with the object
-        move_to_goal(self.robot, pre_grasp_position, orientation)
+        move_to_goal(self.robot, post_grasp_position, orientation)
 
     def place(self, goal_position: np.ndarray):
         """
@@ -57,7 +60,7 @@ class PickAndPlace:
             goal_position: The position to place the object as a numpy array [x, y, z].
         """
         # Move above the goal position
-        pre_place_position = goal_position + np.array([0, 0, 0.1])  # Offset above the goal
+        pre_place_position = goal_position + np.array([0, 0, 0.2])  # Offset above the goal
         move_to_goal(self.robot, pre_place_position)
 
         # Move to the goal position
@@ -120,12 +123,17 @@ class GraspPlanner:
         gripper_center = centroid  
         
         # Normalize axes
-        x_axis = axis1 / np.linalg.norm(axis1)  
-        y_axis = axis2 / np.linalg.norm(axis2)  
+        y_axis = axis1 / np.linalg.norm(axis1)  
+        x_axis = axis2 / np.linalg.norm(axis2)  
         z_axis = np.cross(x_axis, y_axis)  # Compute orthogonal z-axis
-        z_axis /= np.linalg.norm(z_axis)  
+        z_axis /= np.linalg.norm(z_axis)
+        if z_axis[2] > 0:
+            z_axis = -z_axis
+            x_axis = -x_axis
 
         rotation = R.from_matrix(np.column_stack((x_axis, y_axis, z_axis)))
         quaternion = rotation.as_quat()  # Convert to quaternion
+
+        print(f"Quaternion: {quaternion}")
 
         return gripper_center, quaternion
