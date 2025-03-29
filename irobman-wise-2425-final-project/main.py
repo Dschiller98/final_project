@@ -27,8 +27,8 @@ def run_exp(config: Dict[str, Any]):
     sim = Simulation(config)
     pose_estimator = PoseEstimator(sim)
     for obj_name in obj_names:
-        for tstep in range(10):
-            sim.reset("YcbChipsCan")
+        for tstep in range(1):
+            sim.reset(obj_name)
             print((f"Object: {obj_name}, Timestep: {tstep},"
                    f" pose: {sim.get_ground_tuth_position_object}"))
             pos, ori = sim.robot.pos, sim.robot.ori
@@ -50,22 +50,22 @@ def run_exp(config: Dict[str, Any]):
                 
             obj_id = sim.object.id
 
-            try:
-                obj_position = pose_estimator.estimate_position_from_static(obj_id)
-                p.addUserDebugPoints([obj_position], [[1, 0, 0]], pointSize=10)
+            #p.addUserDebugPoints([[0.1, -0.5, 2]], [[1, 0, 0]], pointSize=10)
 
-            except Exception as e:
-                print(f"Error in estimating object position from static camera image: {e}")
-                #obj_position = pose_estimator.scan_table(obj_id)
+
+            pcd = pose_estimator.estimate_object_pcd(obj_id)
+            #p.addUserDebugPoints([obj_position], [[1, 0, 0]], pointSize=10)
+
             
             pnp = PickAndPlace(sim.robot, sim)
-            grasp_planner = GraspPlanner(pose_estimator.pcd)
+            grasp_planner = GraspPlanner(pcd)
+            #p.addUserDebugPoints(pcd.tolist(), [[1, 0, 0] for _ in range(len(pcd))], pointSize=2)
 
             grasp = grasp_planner.find_best_grasp()
 
             pnp.pick_and_place(grasp[0], grasp[1], goal_position=[0.5, 0.4, 1.4])
 
-            for i in range(10000):
+            for i in range(20):
                 sim.step()
                 # for getting renders
                 #static_rgb, static_depth, static_seg = sim.get_static_renders()
