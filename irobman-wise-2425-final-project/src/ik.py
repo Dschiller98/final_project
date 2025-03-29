@@ -9,7 +9,7 @@ import numpy as np
 import pybullet as p
 from .robot import Robot
 
-def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 10000, threshold: float = 3e-3):
+def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 5000, threshold: float = 7e-3):
         """
         Iterative inverse Kinematics solver using Jacobian pseudo-inverse.
 
@@ -59,9 +59,11 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
             
             jacobian = np.vstack((jacobian_lin, jacobian_rot))
 
-            # Compute joint velocity using the pseudo-inverse of the Jacobian
-            jacobian_pseudo_inverse = np.linalg.pinv(jacobian)
-            joint_angles = np.dot(jacobian_pseudo_inverse, error)
+            # Compute the damped pseudo-inverse of the Jacobian
+            identity = np.eye(jacobian.shape[0])
+            jacobian_damped_pseudo_inverse = jacobian.T @ np.linalg.inv(jacobian @ jacobian.T + 0.01**2 * identity)
+
+            joint_angles = np.dot(jacobian_damped_pseudo_inverse, error)
 
             # Update joint positions
             current_positions = np.concatenate((robot.get_joint_positions(),robot.get_gripper_positions()))
@@ -73,7 +75,7 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
             # TODO make step with sim 
             p.stepSimulation()
 
-def move_to_goal(robot, goal_position: np.ndarray, goal_rotation: np.ndarray = [0, 1, 0, 0]):
+def move_to_goal(robot, goal_position: np.ndarray, goal_rotation: np.ndarray = [0, -1, 0, 0]):
     """
     Moves the robot to the specified goal position using the IK solver.
     default orientation looks down on the table.
