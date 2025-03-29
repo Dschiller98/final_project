@@ -97,7 +97,7 @@ class PoseEstimator:
             view_matrix = self.sim.stat_viewMat
         elif camera_type == "ee":
             """Get end-effector camera viewmatrix. y-axis is up."""
-            ee_pos, ee_rot = self.robot.get_ee_pose()
+            ee_pos, ee_rot = self.sim.robot.get_ee_pose()
             rot_matrix = p.getMatrixFromQuaternion(ee_rot)
             rot_matrix = np.array(rot_matrix).reshape(3, 3)
             init_camera_vector = (0, 0, 1)  # z-axis
@@ -118,34 +118,9 @@ class PoseEstimator:
         points = np.concatenate([points, np.ones((points.shape[0], 1))], axis=-1)
         points = np.dot(extrinsic, points.T).T # transform to world coordinates
         points = points[:, :3]
-        """
-        # Get pixel coordinates of the mask
-        near = 0.01
-        far = 5
-        depth_image = far * near / (far - (far - near) * depth_image)
-        y, x = np.where(mask)
-        z = depth_image[y, x]
 
-        # Extrinsic camera parameters
-
-        Tc = np.array([[1,  0,  0,  0],
-                   [0,  -1,  0,  0],
-                   [0,  0,  -1,  0],
-                   [0,  0,  0,  1]]).reshape(4,4)
-        extrinsics_matrix = np.linalg.inv(np.array(self.sim.stat_viewMat).reshape((4,4),order="F")) @ Tc
-
-        # Convert to 3D points
-        x3d = (x - cx) * z / f
-        y3d = (y - cy) * z / f
-        points = np.stack([x3d, y3d, z], axis=-1)
-        points = points.reshape(-1, 3)
-
-        points = np.concatenate([points, np.ones((points.shape[0], 1))], axis=-1)
-        points = np.dot(extrinsics_matrix, points.T).T # transform to world coordinates
-        points = points[:, :3]
-        """
         # TODO hier noch richtig machen später
-        self.pcd = points
+        #self.pcd = points
         return points
 
     
@@ -161,6 +136,8 @@ class PoseEstimator:
         """
         rgb_static, depth_static, seg_static = self.get_static_camera_data()
         mask_static = self.segment_object(seg_static, object_id)
+        if mask_static.sum() < 6:
+            raise ValueError("No object found in the static camera image.")
         position = self.estimate_position_from_depth(depth_static, mask_static, camera_type="static")
 
         return position
@@ -182,7 +159,21 @@ class PoseEstimator:
 
         return position
     
+    def estimate_pcd_from_ee(self, object_id):
+        """
+        Estimate the point cloud of the object using the end-effector camera.
 
+        Args:
+            object_id: ID of the target object.
+
+        Returns:
+            Point cloud of the object.
+        """
+        rgb_ee, depth_ee, seg_ee = self.get_ee_camera_data()
+        mask_ee = self.segment_object(seg_ee, object_id)
+        pcd = self.depth_to_point_cloud(depth_ee, mask_ee, camera_type="ee")
+        return pcd
+    
     def scan_table(self, object_id):
         """
         Scan the table using the end-effector camera to estimate the object position.
@@ -193,8 +184,34 @@ class PoseEstimator:
         Returns:
             Position of the object center.
         """
+        camera_pos = [0.1, -0.5, 1.9]
+        move_to_goal(self.sim.robot, camera_pos)
         position = self.estimate_position_from_ee(object_id)
         return position
+    
+    def estimate_object_position(self, object_id):
+        """
+        Estimate the position of the object using both static and end-effector cameras.
 
-    # TODO estimate_object_position -> beinhaltet absuchen des tisches mit ee um objekt zu finden -> komplette pipline um target zu finden
-    # TODO falls static object schon findet, trzd mit ee genauer nachschauen
+        Args:
+            object_id: ID of the target object.
+
+        Returns:
+            Position of the object center.
+        """
+        try:
+            position = self.estimate_position_from_static(object_id)
+        except Exception as e:
+            print(f"Error in estimating position from static camera: {e}")
+            position = self.scan_table(object_id)
+
+        return position
+    
+    def estimate_object_pcd(self, object_id):
+
+        position = self.estimate_object_position(object_id)
+        camera_pos = position + np.array([0, 0, 0.1]) # Offset above the object
+        move_to_goal(self.sim.robot, camera_pos)
+        pcd = self.estimate_pcd_from_ee(object_id)
+
+        return pcd
