@@ -9,7 +9,7 @@ import numpy as np
 import pybullet as p
 from .robot import Robot
 
-def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 1000, threshold: float = 3e-3):
+def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndarray, max_iters: int = 10000, threshold: float = 3e-3):
         """
         Iterative inverse Kinematics solver using Jacobian pseudo-inverse.
 
@@ -38,7 +38,7 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
             # Combine position and orientation error
             error = np.concatenate((position_error, orientation_error))
 
-            print(f"error: {np.linalg.norm(error)}")
+            #print(f"error: {np.linalg.norm(error)}")
 
             # Check if the error is within the threshold
             if np.linalg.norm(error) < threshold:
@@ -65,7 +65,7 @@ def ik_solver(robot: Robot, goal_position: np.ndarray, goal_orientation: np.ndar
 
             # Update joint positions
             current_positions = np.concatenate((robot.get_joint_positions(),robot.get_gripper_positions()))
-            new_positions = current_positions + joint_angles * 0.1 # Scale step size
+            new_positions = current_positions + joint_angles * 0.05 # Scale step size
             # Clamp joint positions to within limits
             new_positions = np.clip(new_positions[robot.arm_idx], robot.lower_limits, robot.upper_limits)
             robot.position_control(new_positions[robot.arm_idx])
