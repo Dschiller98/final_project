@@ -144,6 +144,8 @@ class PoseEstimator:
         points = np.dot(extrinsics_matrix, points.T).T # transform to world coordinates
         points = points[:, :3]
         """
+        # TODO hier noch richtig machen später
+        self.pcd = points
         return points
 
     
