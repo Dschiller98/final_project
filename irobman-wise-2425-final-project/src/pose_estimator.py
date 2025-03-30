@@ -159,6 +159,21 @@ class PoseEstimator:
 
         return position
     
+    def estimate_pcd_from_static(self, object_id):
+        """
+        Estimate the point cloud of the object using the end-effector camera.
+
+        Args:
+            object_id: ID of the target object.
+
+        Returns:
+            Point cloud of the object.
+        """
+        rgb_static, depth_static, seg_static = self.get_static_camera_data()
+        mask_static = self.segment_object(seg_static, object_id)
+        pcd = self.depth_to_point_cloud(depth_static, mask_static, camera_type="static")
+        return pcd
+    
     def estimate_pcd_from_ee(self, object_id):
         """
         Estimate the point cloud of the object using the end-effector camera.
