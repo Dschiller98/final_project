@@ -16,6 +16,8 @@ from src.ik import move_to_goal
 
 from src.grasping import PickAndPlace, GraspPlanner
 
+from src.tracking import ObstacleTracker
+
 
 def run_exp(config: Dict[str, Any]):
     # Example Experiment Runner File
@@ -26,6 +28,7 @@ def run_exp(config: Dict[str, Any]):
     obj_names = [file.split('/')[-1] for file in files]
     sim = Simulation(config)
     pose_estimator = PoseEstimator(sim)
+    tracker = ObstacleTracker(pose_estimator)
     for obj_name in obj_names:
         for tstep in range(1):
             sim.reset(obj_name)
@@ -53,24 +56,31 @@ def run_exp(config: Dict[str, Any]):
             #p.addUserDebugPoints([[0.1, -0.5, 2]], [[1, 0, 0]], pointSize=10)
 
 
-            pcd = pose_estimator.estimate_object_pcd(obj_id)
+            #pcd = pose_estimator.estimate_object_pcd(obj_id)
             #p.addUserDebugPoints([obj_position], [[1, 0, 0]], pointSize=10)
 
             
-            pnp = PickAndPlace(sim.robot, sim)
-            grasp_planner = GraspPlanner(pcd)
+            #pnp = PickAndPlace(sim.robot, sim)
+            #grasp_planner = GraspPlanner(pcd)
             #p.addUserDebugPoints(pcd.tolist(), [[1, 0, 0] for _ in range(len(pcd))], pointSize=2)
 
-            grasp = grasp_planner.find_best_grasp()
+            #grasp = grasp_planner.find_best_grasp()
 
-            pnp.pick_and_place(grasp[0], grasp[1], goal_position=[0.5, 0.4, 1.4])
+            #pnp.pick_and_place(grasp[0], grasp[1], goal_position=[0.5, 0.4, 1.4])
 
-            for i in range(20):
+            
+
+            for i in range(2000):
                 sim.step()
                 # for getting renders
                 #static_rgb, static_depth, static_seg = sim.get_static_renders()
                 #ee_rgb, ee_depth, ee_seg = sim.get_ee_renders()
 
+                if i % 5 == 0:
+                    states = tracker.track_obstacles()
+                    _, radii = tracker.estimate_obstacle_parameters()
+                    for state, radius in zip(states.values(), radii):
+                        tracker.draw_bounding_boxes(state["position"], radius)
                 
                 print(f"Robot End Effector Position: {sim.robot.get_ee_pose()[0]}")
                 print(f"Robot End Effector Orientation: {sim.robot.get_ee_pose()[1]}")
