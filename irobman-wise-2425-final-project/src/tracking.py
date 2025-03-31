@@ -155,3 +155,38 @@ class ObstacleTracker:
         return self.get_obstacle_states()
 
 
+    def predict_trajectory(self, num_steps=50, time_step=1/240):
+        """
+        Predict the future trajectory of an obstacle.
+
+        Args:
+            obstacle_id: ID of the obstacle to predict.
+            num_steps: Number of future steps to predict.
+            time_step: Time step for each prediction.
+
+        Returns:
+            A list of predicted positions for the obstacle.
+        """
+        trajectory = {}
+        for id, kf in self.kalman_filters.items():
+
+            # Save the current state and transition matrix
+            original_state = kf.x.copy()
+            original_F = kf.F.copy()
+
+            # Update the state transition matrix for the specified time step
+            kf.F[:3, 3:] = np.eye(3) * time_step
+
+            # Predict the trajectory
+            predictions = []
+            for _ in range(num_steps):
+                kf.predict()
+                predictions.append(kf.x[:3].copy())  # Append the predicted position
+
+            # Restore the original state and transition matrix
+            kf.x = original_state
+            kf.F = original_F
+
+            trajectory[id] = predictions
+
+        return trajectory
