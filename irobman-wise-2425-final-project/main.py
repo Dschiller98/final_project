@@ -71,16 +71,23 @@ def run_exp(config: Dict[str, Any]):
             
 
             for i in range(2000):
-                sim.step()
+                #sim.step()
                 # for getting renders
                 #static_rgb, static_depth, static_seg = sim.get_static_renders()
                 #ee_rgb, ee_depth, ee_seg = sim.get_ee_renders()
 
-                if i % 5 == 0:
+                # TODO: plot line from first to last prediction and bounding box for last prediction
+
+                if i % 1 == 0:
                     states = tracker.track_obstacles()
                     _, radii = tracker.estimate_obstacle_parameters()
                     for state, radius in zip(states.values(), radii):
                         tracker.draw_bounding_boxes(state["position"], radius)
+                obs_traj = tracker.predict_trajectory()
+                for j in range(50):
+                    sim.step()
+                    for state, radius in zip(obs_traj.values(), radii):
+                        tracker.draw_bounding_boxes(state[j], radius)
                 
                 print(f"Robot End Effector Position: {sim.robot.get_ee_pose()[0]}")
                 print(f"Robot End Effector Orientation: {sim.robot.get_ee_pose()[1]}")
