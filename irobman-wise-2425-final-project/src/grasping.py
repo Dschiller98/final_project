@@ -104,9 +104,10 @@ class PickAndPlace:
 
 
 class GraspPlanner:
-    def __init__(self, pointcloud):
+    def __init__(self, pointcloud, robot):
         # Convert the Open3D point cloud to a NumPy array
         self.pointcloud = pointcloud
+        self.robot = robot
 
     def compute_convex_hull(self):
         """ Computes the convex hull of the point cloud. """
@@ -140,16 +141,23 @@ class GraspPlanner:
         y_axis = axis2 / np.linalg.norm(axis2)  
         z_axis = np.cross(x_axis, y_axis)  # Compute orthogonal z-axis
         z_axis /= np.linalg.norm(z_axis)
+        # Ensure the z-axis is pointing downwards
         if z_axis[2] > 0:
             z_axis = -z_axis
             x_axis = -x_axis
-        
-        p.addUserDebugLine(gripper_center, gripper_center + x_axis, [1, 0, 0], 3)
-        p.addUserDebugLine(gripper_center, gripper_center + y_axis, [0, 1, 0], 3)
-        p.addUserDebugLine(gripper_center, gripper_center + z_axis, [0, 0, 1], 3)
 
-        rotation = R.from_matrix(np.column_stack((-x_axis, -y_axis, z_axis)))
-        quaternion = rotation.as_quat()  # Convert to quaternion
+        # Ensure the gripper is oriented correctly
+        if y_axis[0] > 0:
+            x_axis = -x_axis
+            y_axis = -y_axis
+        
+        p.addUserDebugLine(gripper_center, gripper_center + x_axis*0.1, [1, 0, 0], 3)
+        p.addUserDebugLine(gripper_center, gripper_center + y_axis*0.1, [0, 1, 0], 3)
+        p.addUserDebugLine(gripper_center, gripper_center + z_axis*0.1, [0, 0, 1], 3)
+
+        rotation = R.from_matrix(np.column_stack((x_axis, y_axis, z_axis)))
+        quaternion = rotation.as_quat()
+        
 
         print(f"Quaternion: {quaternion}")
 
