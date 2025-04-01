@@ -13,7 +13,7 @@ class PickAndPlace:
         robot: An instance of the Robot class.
     """
 
-    def __init__(self, robot, sim):
+    def __init__(self, robot, sim, table_center):
         """
         Initialize the PickAndPlace class.
 
@@ -22,6 +22,8 @@ class PickAndPlace:
         """
         self.robot = robot
         self.sim = sim
+        
+        self.table_center = table_center
 
     def pick(self, object_position: np.ndarray, orientation: np.ndarray = None):
         """
@@ -45,8 +47,8 @@ class PickAndPlace:
         move_to_goal(self.robot, pre_grasp_position, orientation)
 
         # Estimate of grasp position tends to be too high
-        # TODO: adjust based on distance to the table
-        grasp_position = object_position + np.array([0, 0, -0.04])
+        grasp_position = object_position
+        grasp_position[2] = np.max([self.table_center[2] + 0.01, grasp_position[2] - 0.04])
 
         # Move to the object
         move_to_goal(self.robot, grasp_position, orientation)
@@ -80,7 +82,7 @@ class PickAndPlace:
         # Open the gripper to release the object
         self.robot.gripper_control(upper_limits)
 
-        for _ in range(800):
+        for _ in range(1000):
             self.sim.step()
 
         # Move back up after placing the object
