@@ -26,7 +26,7 @@ class ObstacleTracker:
         self.debug_ids = deque()
 
 
-    def initialize_kalman_filter(self, initial_position):
+    def initialize_kalman_filter(self, initial_position, dt=0.1):
         """
         Initialize a Kalman filter for an obstacle.
 
@@ -40,11 +40,11 @@ class ObstacleTracker:
         kf = KalmanFilter(dim_x=6, dim_z=3)
         kf.x = np.array([*initial_position, 0, 0, 0])  # Initial state [x, y, z, vx, vy, vz]
         kf.F = np.eye(6)  # State transition matrix
-        kf.F[:3, 3:] = np.eye(3) * 0.1  # Incorporate velocity into position
+        kf.F[:3, 3:] = np.eye(3) * dt  # Incorporate velocity into position
         kf.H = np.eye(3, 6)  # Measurement function
         kf.P *= 1000.0  # Initial uncertainty
-        kf.R = np.eye(3) * 0.1  # Measurement noise
-        kf.Q = np.eye(6) * 0.1  # Process noise
+        kf.R = np.eye(3) * 0.01  # Measurement noise
+        kf.Q = np.eye(6) * 0.5  # Process noise
         return kf
 
     def update(self, obstacle_positions):
