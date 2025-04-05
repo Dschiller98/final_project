@@ -13,17 +13,14 @@ class PickAndPlace:
         robot: An instance of the Robot class.
     """
 
-    def __init__(self, robot, sim, table_center):
+    def __init__(self, sim):
         """
         Initialize the PickAndPlace class.
 
         Args:
             robot: An instance of the Robot class.
         """
-        self.robot = robot
         self.sim = sim
-        
-        self.table_center = table_center
 
     def pick(self, object_position: np.ndarray, orientation: np.ndarray = None):
         """
@@ -33,10 +30,10 @@ class PickAndPlace:
             object_position: The position of the object to pick as a numpy array [x, y, z].
         """
         # Retrieve gripper limits
-        lower_limits, upper_limits = self.robot.get_gripper_limits()
+        lower_limits, upper_limits = self.sim.robot.get_gripper_limits()
 
         # Open the gripper
-        self.robot.gripper_control(upper_limits)
+        self.sim.robot.gripper_control(upper_limits)
 
         for _ in range(200):
             self.sim.step()
@@ -44,23 +41,24 @@ class PickAndPlace:
         # Move to a position above the object
         pre_grasp_position = object_position + np.array([0, 0, 0.1])
         
-        move_to_goal(self.robot, pre_grasp_position, orientation)
+        move_to_goal(self.sim.robot, pre_grasp_position, orientation)
 
         # Estimate of grasp position tends to be too high
+        # Lower grasp position but make sure to stay above the table
         grasp_position = object_position
-        grasp_position[2] = np.max([self.table_center[2] + 0.01, grasp_position[2] - 0.04])
+        grasp_position[2] = np.max([1.24 + 0.01, grasp_position[2] - 0.04])
 
         # Move to the object
-        move_to_goal(self.robot, grasp_position, orientation)
+        move_to_goal(self.sim.robot, grasp_position, orientation)
 
         # Close the gripper to grasp the object
-        self.robot.gripper_control(lower_limits)
+        self.sim.robot.gripper_control(lower_limits)
 
         for _ in range(800):
             self.sim.step()
 
         # Move back up with the object
-        move_to_goal(self.robot, pre_grasp_position, orientation)
+        move_to_goal(self.sim.robot, pre_grasp_position, orientation)
 
     def place(self, goal_position: np.ndarray):
         """
@@ -71,16 +69,16 @@ class PickAndPlace:
         """
         # Move above the goal position
         pre_place_position = goal_position + np.array([0, 0, 0.2])  # Offset above the goal
-        move_to_goal(self.robot, pre_place_position)
+        move_to_goal(self.sim.robot, pre_place_position)
 
         # Move to the goal position
         #move_to_goal(self.robot, goal_position)
 
         # Retrieve gripper limits
-        _, upper_limits = self.robot.get_gripper_limits()
+        _, upper_limits = self.sim.robot.get_gripper_limits()
 
         # Open the gripper to release the object
-        self.robot.gripper_control(upper_limits)
+        self.sim.robot.gripper_control(upper_limits)
 
         for _ in range(1000):
             self.sim.step()
@@ -157,8 +155,5 @@ class GraspPlanner:
 
         rotation = R.from_matrix(np.column_stack((x_axis, y_axis, z_axis)))
         quaternion = rotation.as_quat()
-        
-
-        print(f"Quaternion: {quaternion}")
 
         return gripper_center, quaternion
