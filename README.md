@@ -47,10 +47,14 @@ requirements.txt
 
 ## Results
 
-The project includes tests to evaluate the performance of each module. Results are logged and visualized to provide insights into the system's capabilities.
+The project includes tests to evaluate the performance of each sub-task. Results are logged and visualized to provide insights into the system's capabilities.
 
-To execute the tests, run them from the final_project folder
+To execute the tests, run them from the final_project folder.
 
+### Run all tests
+```shell
+python irobman-wise-2425-final-project/launch.py
+```
 ### Test Perception
 ```shell
 python irobman-wise-2425-final-project/test_perception.py
