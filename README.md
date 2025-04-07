@@ -49,31 +49,31 @@ requirements.txt
 
 The project includes tests to evaluate the performance of each module. Results are logged and visualized to provide insights into the system's capabilities.
 
-To execute the tests, run them from the irobman-wise-2425-final-project folder
+To execute the tests, run them from the final_project folder
 
 ### Test Perception
 ```shell
-python test_perception.py
+python irobman-wise-2425-final-project/test_perception.py
 ```
 ### Test Control
 ```shell
-python test_control.py
+python irobman-wise-2425-final-project/test_control.py
 ```
 ### Test Grasping
 ```shell
-python test_grasping.py
+python irobman-wise-2425-final-project/test_grasping.py
 ```
 ### Test Pick-and-place
 ```shell
-python test_pnp.py
+python irobman-wise-2425-final-project/test_pnp.py
 ```
 ### Test Tracking
 ```shell
-python test_tracking.py
+python irobman-wise-2425-final-project/test_tracking.py
 ```
 ### Test Full Setup
 ```shell
-python main.py
+python irobman-wise-2425-final-project/main.py
 ```
 
 ## Authors
