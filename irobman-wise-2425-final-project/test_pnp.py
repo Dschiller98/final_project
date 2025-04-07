@@ -1,4 +1,4 @@
-# This file contains the test for moving the object to the goal with obstacles.
+# This file contains the test for moving the object to the goal.
 import os
 import glob
 import yaml
@@ -19,13 +19,9 @@ from src.perception import PoseEstimator
 
 from src.grasping import PickAndPlace, GraspPlanner
 
-from src.planning import LocalPlanner
-
 from src.control import Controller
 
-from src.tracking import ObstacleTracker
-
-def test_full_setup(config: Dict[str, Any]):
+def test_pnp(config: Dict[str, Any]):
     print("Simulation Start:")
     print(config['world_settings'], config['robot_settings'])
     object_root_path = ycb_objects.getDataPath()
@@ -34,10 +30,6 @@ def test_full_setup(config: Dict[str, Any]):
     sim = Simulation(config)
     controller = Controller(sim)
     pose_estimator = PoseEstimator(sim, controller)
-    tracker = ObstacleTracker(pose_estimator)
-    planner = LocalPlanner(sim)
-    controller.set_planner(planner)
-    controller.set_tracker(tracker)
     pnp = PickAndPlace(sim, controller)
     grasp_planner = GraspPlanner()
 
@@ -47,7 +39,7 @@ def test_full_setup(config: Dict[str, Any]):
     object_pass_counts = {obj_name: 0 for obj_name in obj_names}
     print(f"Testing Pick and Place...")
     for obj_name in obj_names:
-        for tstep in range(1):
+        for tstep in range(10):
             total += 1
             sim.reset(obj_name)
             print("---------------------------------")
@@ -56,19 +48,17 @@ def test_full_setup(config: Dict[str, Any]):
 
             # wait for object to fall onto the table before starting the program
             for i in range(400):
-                current_position, current_orientation = sim.robot.get_ee_pose()
-                controller.move_with_obstacles(current_position, current_orientation)
                 sim.step()
 
             obj_id = sim.object.id
 
-            _, pcd = pose_estimator.estimate_object_pose_all_cameras(obj_id, obstacles=True)
+            _, pcd = pose_estimator.estimate_object_pose_all_cameras(obj_id)
 
             grasp_planner.set_pcd(pcd)
 
             grasp_pos, grasp_ori = grasp_planner.find_best_grasp()
 
-            pnp.pick_and_place(grasp_pos, grasp_ori, [0.5, 0.4, 1.4], obstacles=True)
+            pnp.pick_and_place(grasp_pos, grasp_ori, [0.5, 0.4, 1.4])
 
             if sim.check_goal():
                 print("Test Passed: Object placed successfully.")
@@ -87,7 +77,7 @@ def test_full_setup(config: Dict[str, Any]):
     plt.bar(objects, pass_counts, color='skyblue')
     plt.xlabel('Object Names')
     plt.ylabel('Number of Successful Runs')
-    plt.title('Pick and Place with Obstacles Test Results')
+    plt.title('Pick and Place Test Results')
     plt.xticks(rotation=45, ha='right')  # Rotate object names for better readability
     plt.tight_layout()
     plt.show()
@@ -95,8 +85,7 @@ def test_full_setup(config: Dict[str, Any]):
 with open("irobman-wise-2425-final-project/configs/test_config.yaml", "r") as stream:
     try:
         config = yaml.safe_load(stream)
-        config["world_settings"]["turn_on_obstacles"] = True
         print(config)
     except yaml.YAMLError as exc:
         print(exc)
-test_full_setup(config)
+test_pnp(config)
