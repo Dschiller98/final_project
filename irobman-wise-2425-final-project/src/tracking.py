@@ -83,7 +83,7 @@ class ObstacleTracker:
         radii = []
         centers =[]
         for i in range(len(object_ids)):
-            pcd = self.pose_estimator.estimate_pcd_from_static(object_ids[i])
+            pcd = self.pose_estimator.estimate_object_pose(object_ids[i], "static")[1]
             x0_init = np.mean(pcd[:, 0])
             y0_init = np.mean(pcd[:, 1])
             z0_init = np.mean(pcd[:, 2])
@@ -157,15 +157,14 @@ class ObstacleTracker:
 
     def predict_trajectory(self, num_steps=50, time_step=1/240):
         """
-        Predict the future trajectory of an obstacle.
+        Predict the future trajectory of the obstacles.
 
         Args:
-            obstacle_id: ID of the obstacle to predict.
             num_steps: Number of future steps to predict.
             time_step: Time step for each prediction.
 
         Returns:
-            A list of predicted positions for the obstacle.
+            A dict of predicted positions for the obstacles.
         """
         trajectory = {}
         for id, kf in self.kalman_filters.items():
