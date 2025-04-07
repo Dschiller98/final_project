@@ -78,7 +78,7 @@ class LocalPlanner:
     A class to perform local motion planning using the Potential Field Method for obstacle avoidance.
     """
 
-    def __init__(self, sim, goal_joint_angles, obstacles, attractive_gain=10.0, repulsive_gain=1.0, repulsive_threshold=0.5):
+    def __init__(self, sim, attractive_gain=10.0, repulsive_gain=1.0, repulsive_threshold=0.5):
         """
         Initialize the LocalPlanner.
 
@@ -91,13 +91,11 @@ class LocalPlanner:
             repulsive_threshold: Distance threshold for repulsive forces to take effect.
         """
         self.sim = sim
-        self.goal_joint_angles = np.array(goal_joint_angles)
-        self.obstacles = obstacles
         self.attractive_gain = attractive_gain
         self.repulsive_gain = repulsive_gain
         self.repulsive_threshold = repulsive_threshold
 
-    def compute_attractive_force(self, current_joint_angles):
+    def compute_attractive_force(self, current_joint_angles, goal_joint_angles):
         """
         Compute the attractive force in joint space toward the goal.
 
@@ -107,10 +105,10 @@ class LocalPlanner:
         Returns:
             The attractive force as a numpy array (n,).
         """
-        force = self.attractive_gain * (self.goal_joint_angles - current_joint_angles)
+        force = self.attractive_gain * (goal_joint_angles - current_joint_angles)
         return force
 
-    def compute_repulsive_force(self, current_joint_angles):
+    def compute_repulsive_force(self, current_joint_angles, obstacles):
         """
         Compute the repulsive force in joint space away from obstacles.
 
@@ -122,6 +120,8 @@ class LocalPlanner:
         """
         total_force = np.zeros_like(current_joint_angles)
 
+        gripper_positions = self.sim.robot.get_gripper_positions()
+
         # Iterate over all links of the robot
         for link_idx in range(7):
             # Get the Cartesian position of the link
@@ -129,7 +129,7 @@ class LocalPlanner:
             link_position = np.array(link_state[0])  # Extract the position (x, y, z)
 
             # Compute repulsive forces for each obstacle
-            for obstacle_position in self.obstacles:
+            for obstacle_position in obstacles:
                 obstacle_position = np.array(obstacle_position)
                 distance_vector = link_position - obstacle_position
                 distance = np.linalg.norm(distance_vector)
@@ -140,14 +140,20 @@ class LocalPlanner:
                     repulsive_force_vector = repulsive_force * (distance_vector / distance)
 
                     # Map the Cartesian repulsive force to joint space using the Jacobian
-                    jacobian = p.calculateJacobian(self.sim.robot.id, link_idx, [0, 0, 0], list(current_joint_angles), [0]*len(current_joint_angles), [0]*len(current_joint_angles))[0]
+                    jacobian = p.calculateJacobian(
+                        self.sim.robot.id, 
+                        link_idx, 
+                        [0, 0, 0], 
+                        current_joint_angles.tolist() + gripper_positions.tolist(), 
+                        [0]*len(current_joint_angles.tolist() + gripper_positions.tolist()), 
+                        [0]*len(current_joint_angles.tolist() + gripper_positions.tolist()))[0]
                     jacobian = np.array(jacobian)
                     joint_repulsive_force = jacobian.T @ repulsive_force_vector
-                    total_force += joint_repulsive_force
+                    total_force += joint_repulsive_force[:7]
 
         return total_force
 
-    def compute_total_force(self, current_joint_angles):
+    def compute_total_force(self, current_joint_angles, goal_joint_angles, obstacles):
         """
         Compute the total force acting on the robot in joint space.
 
@@ -157,45 +163,7 @@ class LocalPlanner:
         Returns:
             The total force as a numpy array (n,).
         """
-        attractive_force = self.compute_attractive_force(current_joint_angles)
-        repulsive_force = self.compute_repulsive_force(current_joint_angles)
+        attractive_force = self.compute_attractive_force(current_joint_angles, goal_joint_angles)
+        repulsive_force = self.compute_repulsive_force(current_joint_angles, obstacles)
         total_force = attractive_force + repulsive_force
         return total_force
-
-    def move_toward_goal(self, step_size=0.1, max_steps=1000):
-        """
-        Move the robot toward the goal in joint space while avoiding obstacles using the Potential Field Method.
-
-        Args:
-            step_size: The step size for each movement.
-            max_steps: The maximum number of steps to take.
-
-        Returns:
-            True if the robot reaches the goal, False otherwise.
-        """
-        # Get the current joint angles of the robot
-        current_joint_angles = self.sim.robot.get_joint_positions()
-
-        # Compute the total force in joint space
-        total_force = self.compute_total_force(current_joint_angles)
-
-        # Normalize the force to get the direction
-        if np.linalg.norm(total_force) > 0:
-            direction = total_force / np.linalg.norm(total_force)
-        else:
-            direction = np.zeros_like(total_force)
-
-        # Update the joint angles
-        new_joint_angles = current_joint_angles + direction * step_size
-        self.sim.robot.position_control(new_joint_angles)
-
-        # Check if the robot has reached the goal
-        if np.linalg.norm(self.goal_joint_angles - current_joint_angles) < 0.01:  # Goal threshold
-            print("Goal reached!")
-            return True
-
-        # Step the simulation
-        #p.stepSimulation()
-
-        print("Goal not reached.")
-        return False
