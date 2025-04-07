@@ -42,7 +42,7 @@ def test_pose_estimator(config: Dict[str, Any]):
             print(f"Object: {obj_name}, Position: {sim.get_ground_tuth_position_object}")
 
             # wait for object to fall onto the table before starting the program
-            for i in range(400):
+            for i in range(150):
                 sim.step()
                 
             obj_id = sim.object.id

@@ -47,7 +47,7 @@ def test_full_setup(config: Dict[str, Any]):
     object_pass_counts = {obj_name: 0 for obj_name in obj_names}
     print(f"Testing Pick and Place...")
     for obj_name in obj_names:
-        for tstep in range(1):
+        for tstep in range(10):
             total += 1
             sim.reset(obj_name)
             print("---------------------------------")
@@ -55,7 +55,7 @@ def test_full_setup(config: Dict[str, Any]):
             print(f"Object: {obj_name}, Position: {sim.get_ground_tuth_position_object}")
 
             # wait for object to fall onto the table before starting the program
-            for i in range(400):
+            for i in range(150):
                 current_position, current_orientation = sim.robot.get_ee_pose()
                 controller.move_with_obstacles(current_position, current_orientation)
                 sim.step()
